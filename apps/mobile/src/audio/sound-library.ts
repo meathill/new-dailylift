@@ -23,6 +23,11 @@ const LIBRARY: LibraryEntry[] = [
 /** 内置音源定义列表（界面音源栏使用） */
 export const SOUND_LIBRARY: SoundDef[] = LIBRARY.map(({ id, name }) => ({ id, name }));
 
+/** 音源显示名 */
+export function soundNameOf(id: SoundId): string {
+  return LIBRARY.find((item) => item.id === id)?.name ?? id;
+}
+
 /** 解析音源的本地文件 URI，供原生模块读取 */
 export async function resolveSoundUri(id: SoundId): Promise<string> {
   const entry = LIBRARY.find((item) => item.id === id);

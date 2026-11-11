@@ -226,7 +226,8 @@ function generateBirds(sampleCount: number, sampleRate: number): Float32Array {
       const phase = ((i * freq) / sampleRate) % 1;
       // 包络：快起慢落
       chirpEnv = Math.min(1, chirpEnv * 1.15) * 0.998;
-      chirp = Math.sin(2 * Math.PI * phase) * chirpEnv * Math.sin(Math.PI * Math.min(1, progress * 3));
+      chirp =
+        Math.sin(2 * Math.PI * phase) * chirpEnv * Math.sin(Math.PI * Math.min(1, progress * 3));
     }
     out[i] = chirp * 0.7 + ambient[i] * 0.15;
   }
