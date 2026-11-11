@@ -1,10 +1,8 @@
-import { useEffect } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
-  ensureEngineReady,
   loadAndPlaySource,
   pauseSource,
   resumeSource,
@@ -29,10 +27,6 @@ export default function App() {
   const selectedId = useSchemeStore((state) => state.selectedId);
   const schemeName = useSchemeStore((state) => state.schemeName);
   const store = useSchemeStore;
-
-  useEffect(() => {
-    ensureEngineReady().catch(notifyError);
-  }, []);
 
   const selectedSource = sources.find((item) => item.instanceId === selectedId) ?? null;
 

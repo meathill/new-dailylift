@@ -1,0 +1,7 @@
+{
+  "name": "spatial-audio",
+  "version": "0.1.0",
+  "description": "多声源空间音频引擎（AVAudioEngine + AVAudioEnvironmentNode HRTF）",
+  "main": "index.ts",
+  "private": true
+}

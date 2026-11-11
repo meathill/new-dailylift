@@ -22,7 +22,8 @@ public class SpatialAudioModule: Module {
   public func definition() -> ModuleDefinition {
     Name("SpatialAudio")
 
-    Description("多声源空间音频引擎（AVAudioEngine + AVAudioEnvironmentNode HRTF）")
+    // 多声源播放、无缝循环、HRTF 双耳定位、距离衰减
+    // 坐标约定见类注释
 
     AsyncFunction("prepare") { [weak self] () -> Void in
       guard let self else { return }
@@ -81,8 +82,9 @@ public class SpatialAudioModule: Module {
 
       if !isPrepared {
         engine.attach(environment)
-        // 听者在原点，默认朝 -z 前方
-        environment.listener.position = AVAudio3DPoint(x: 0, y: 0, z: 0)
+        // 空图调用 prepare() 会抛 inputNode/outputNode 为空的异常，
+        // 先把环境节点接上主混音器，构成有效输出链
+        engine.connect(environment, to: engine.mainMixerNode, format: nil)
         isPrepared = true
       }
 
@@ -120,12 +122,10 @@ public class SpatialAudioModule: Module {
       engine.attach(player)
       engine.connect(player, to: environment, format: format)
 
-      // 单声道素材走 HRTF 双耳渲染；距离衰减参数挂在每个声源节点上
+      // 单声道素材走 HRTF 双耳渲染
       player.renderingAlgorithm = .HRTFHQ
       player.sourceMode = .spatializeIfMono
-      player.distanceParams.referenceDistance = 0.5
-      player.distanceParams.maximumDistance = 5
-      player.distanceParams.rolloffFactor = 1.0
+      // 距离衰减使用系统默认参数（参考距离 1m、rolloff 1），近处响、远处轻
 
       player.scheduleBuffer(
         buffer, at: nil,
@@ -170,13 +170,15 @@ public class SpatialAudioModule: Module {
 
   private func setSourcePosition(id: String, x: Double, y: Double, z: Double) {
     audioQueue.sync {
-      sources[id]?.player.position = AVAudio3DPoint(x: x, y: y, z: z)
+      sources[id]?.player.position = AVAudio3DPoint(
+        x: Float(x), y: Float(y), z: Float(z)
+      )
     }
   }
 
   private func setSourceVolume(id: String, volume: Double) {
     audioQueue.sync {
-      sources[id]?.player.volume = volume
+      sources[id]?.player.volume = Float(volume)
     }
   }
 
