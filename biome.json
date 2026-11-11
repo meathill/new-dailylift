@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
   "files": {
-    "includes": ["**", "!**/.expo/**", "!**/ios/**", "!**/android/**", "!**/node_modules/**"]
+    "includes": [
+      "**",
+      "!**/.expo/**",
+      "!**/ios/**",
+      "!**/android/**",
+      "!**/node_modules/**",
+      "!STUDY.md"
+    ]
   },
   "formatter": {
     "enabled": true,
