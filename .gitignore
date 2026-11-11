@@ -2,6 +2,8 @@ node_modules/
 .expo/
 dist/
 *.log
+.zcode/
+.claude/
 
 # Expo prebuild 产物（demo 阶段不提交原生工程，需要时 npx expo prebuild 重新生成）
 apps/mobile/ios/
