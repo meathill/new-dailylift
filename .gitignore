@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+*.log
+
+# Expo prebuild 产物（demo 阶段不提交原生工程，需要时 npx expo prebuild 重新生成）
+apps/mobile/ios/
+apps/mobile/android/
+
+# 音频素材体积大但可由脚本再生，入库脚本不入产物
+apps/mobile/assets/audio/
+.DS_Store
+*.tsbuildinfo
