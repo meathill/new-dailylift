@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
   loadAndPlaySource,
@@ -12,14 +14,18 @@ import {
   updateSourceVolume,
 } from './audio/audio-controller';
 import { Disc } from './components/Disc';
+import { DragGhost } from './components/DragGhost';
 import { SchemeBar } from './components/SchemeBar';
 import { SoundLibrary } from './components/SoundLibrary';
 import { SourcePanel } from './components/SourcePanel';
 import { createInstanceId } from './domain/id';
+import { type DiscBounds, isPointInsideDisc, windowPointToSpace } from './domain/position';
 import { saveScheme } from './domain/storage';
 import type { SoundId, SoundScheme } from './domain/types';
 import { useSchemeStore } from './store/useSchemeStore';
 import { importSchemeFromClipboard, shareScheme } from './sharing';
+
+const NODE_RADIUS = 26;
 
 export default function App() {
   const sources = useSchemeStore((state) => state.sources);
@@ -28,22 +34,69 @@ export default function App() {
   const schemeName = useSchemeStore((state) => state.schemeName);
   const store = useSchemeStore;
 
+  const [discBounds, setDiscBounds] = useState<DiscBounds | null>(null);
+  const [activeDragSound, setActiveDragSound] = useState<SoundId | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const dragActive = useSharedValue(0);
+
   const selectedSource = sources.find((item) => item.instanceId === selectedId) ?? null;
 
-  /** 点按音源栏：随机摆到中圈某处并立即播放 */
-  function handleAdd(soundId: SoundId) {
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 1.6 + Math.random() * 0.8;
-    const x = Math.cos(angle) * distance;
-    const z = Math.sin(angle) * distance;
+  /** 在圆盘指定空间位置放置并立即循环播放 */
+  function handleAddAt(soundId: SoundId, x: number, z: number) {
     const instanceId = createInstanceId();
     store.getState().addSource(soundId, x, z, instanceId);
+    store.getState().select(instanceId);
     loadAndPlaySource(instanceId, soundId, x, z, 0.8).catch((error) => {
       store.getState().removeSource(instanceId);
       notifyError(error);
     });
   }
 
+  function handleDragStart(soundId: SoundId, x: number, y: number) {
+    setActiveDragSound(soundId);
+    dragX.value = x;
+    dragY.value = y;
+    dragActive.value = withTiming(1, { duration: 100 });
+  }
+
+  function handleDragUpdate(x: number, y: number) {
+    dragX.value = x;
+    dragY.value = y;
+    if (discBounds) {
+      const hovered = isPointInsideDisc(x, y, discBounds, 1.05);
+      setIsHovered((prev) => (prev !== hovered ? hovered : prev));
+    }
+  }
+
+  function handleDragEnd(soundId: SoundId, x: number, y: number) {
+    dragActive.value = withTiming(0, { duration: 120 });
+    setIsHovered(false);
+    if (discBounds && isPointInsideDisc(x, y, discBounds, 1.05)) {
+      const space = windowPointToSpace(x, y, discBounds, NODE_RADIUS);
+      handleAddAt(soundId, space.x, space.z);
+    }
+    setActiveDragSound(null);
+  }
+
+  function handleDragCancel() {
+    dragActive.value = withTiming(0, { duration: 120 });
+    setIsHovered(false);
+    setActiveDragSound(null);
+  }
+
+  function handleTapHint() {
+    Alert.alert('提示', '请按住音源向上拖动到圆盘中放置');
+  }
+
+  /** 拖动中实时更新声音空间位置（不触发 React 重新渲染） */
+  function handleMove(instanceId: string, x: number, z: number) {
+    updateSourcePosition(instanceId, x, z).catch(notifyError);
+  }
+
+  /** 拖动结束：同步到 store 做数据持久化 */
   function handleMoveEnd(instanceId: string, x: number, z: number) {
     store.getState().moveSource(instanceId, x, z);
     updateSourcePosition(instanceId, x, z).catch(notifyError);
@@ -128,8 +181,11 @@ export default function App() {
             sources={sources}
             pausedIds={pausedIds}
             selectedId={selectedId}
+            isDropTargetHovered={isHovered}
             onSelect={(instanceId) => store.getState().select(instanceId)}
+            onMove={handleMove}
             onMoveEnd={handleMoveEnd}
+            onLayoutBounds={setDiscBounds}
           />
           {selectedSource && (
             <SourcePanel
@@ -148,7 +204,20 @@ export default function App() {
             onImport={handleImport}
             onClear={handleClear}
           />
-          <SoundLibrary onAdd={handleAdd} />
+          <SoundLibrary
+            onDragStart={handleDragStart}
+            onDragUpdate={handleDragUpdate}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+            onTapHint={handleTapHint}
+          />
+          <DragGhost
+            soundId={activeDragSound}
+            dragX={dragX}
+            dragY={dragY}
+            isActive={dragActive}
+            isInsideDisc={isHovered}
+          />
         </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>

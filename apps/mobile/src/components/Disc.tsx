@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { BlurMask, Canvas, Circle, RadialGradient } from '@shopify/react-native-skia';
 import Animated, {
@@ -8,6 +8,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
+import type { DiscBounds } from '../domain/position';
 import type { PlacedSource } from '../domain/types';
 import { SourceNode } from './SourceNode';
 
@@ -15,8 +16,11 @@ interface DiscProps {
   sources: PlacedSource[];
   pausedIds: string[];
   selectedId: string | null;
+  isDropTargetHovered?: boolean;
   onSelect: (instanceId: string) => void;
+  onMove?: (instanceId: string, x: number, z: number) => void;
   onMoveEnd: (instanceId: string, x: number, z: number) => void;
+  onLayoutBounds?: (bounds: DiscBounds) => void;
 }
 
 /** 距离圈：内圈近、外圈远 */
@@ -26,9 +30,19 @@ const RING_RATIOS = [1 / 3, 2 / 3];
  * 声音空间俯视图：中心为听者，屏幕上方为前方。
  * 盘面由 Skia 绘制，声源节点为可拖动的 RN 组件。
  */
-export function Disc({ sources, pausedIds, selectedId, onSelect, onMoveEnd }: DiscProps) {
+export function Disc({
+  sources,
+  pausedIds,
+  selectedId,
+  isDropTargetHovered = false,
+  onSelect,
+  onMove,
+  onMoveEnd,
+  onLayoutBounds,
+}: DiscProps) {
   const [size, setSize] = useState(0);
   const radius = size / 2;
+  const discRef = useRef<ComponentRef<typeof View>>(null);
 
   const pulse = useSharedValue(0);
   useEffect(() => {
@@ -44,9 +58,40 @@ export function Disc({ sources, pausedIds, selectedId, onSelect, onMoveEnd }: Di
   const haloRadius = useDerivedValue(() => 16 + pulse.value * 8);
   const haloOpacity = useDerivedValue(() => 0.35 - pulse.value * 0.2);
 
+  function measureBounds() {
+    discRef.current?.measureInWindow((x, y, width, height) => {
+      if (width > 0 && onLayoutBounds) {
+        onLayoutBounds({
+          centerX: x + width / 2,
+          centerY: y + height / 2,
+          radius: width / 2,
+        });
+      }
+    });
+  }
+
+  function handleLayout(event: { nativeEvent: { layout: { width: number; height: number } } }) {
+    const { width, height } = event.nativeEvent.layout;
+    const nextSize = Math.floor(Math.min(width, height));
+    setSize(nextSize);
+    requestAnimationFrame(measureBounds);
+  }
+
   return (
     <View style={styles.flex} onLayout={handleLayout}>
-      <View style={[styles.disc, { width: size, height: size }]}>
+      <View
+        ref={discRef}
+        style={[
+          styles.disc,
+          {
+            width: size,
+            height: size,
+            borderRadius: radius,
+            borderColor: isDropTargetHovered ? '#E8D5B5' : 'transparent',
+            borderWidth: isDropTargetHovered ? 2 : 0,
+          },
+        ]}
+      >
         <Canvas style={StyleSheet.absoluteFill}>
           <Circle cx={radius} cy={radius} r={radius}>
             <RadialGradient
@@ -92,17 +137,13 @@ export function Disc({ sources, pausedIds, selectedId, onSelect, onMoveEnd }: Di
               isSelected={selectedId === source.instanceId}
               isPaused={pausedIds.includes(source.instanceId)}
               onSelect={onSelect}
+              onMove={onMove}
               onMoveEnd={onMoveEnd}
             />
           ))}
       </View>
     </View>
   );
-
-  function handleLayout(event: { nativeEvent: { layout: { width: number; height: number } } }) {
-    const { width, height } = event.nativeEvent.layout;
-    setSize(Math.floor(Math.min(width, height)));
-  }
 }
 
 const styles = StyleSheet.create({

@@ -19,6 +19,7 @@ interface SourceNodeProps {
   isSelected: boolean;
   isPaused: boolean;
   onSelect: (instanceId: string) => void;
+  onMove?: (instanceId: string, x: number, z: number) => void;
   onMoveEnd: (instanceId: string, x: number, z: number) => void;
 }
 
@@ -32,6 +33,7 @@ export function SourceNode({
   isSelected,
   isPaused,
   onSelect,
+  onMove,
   onMoveEnd,
 }: SourceNodeProps) {
   const metersToPx = discRadius / MAX_DISTANCE_M;
@@ -39,17 +41,23 @@ export function SourceNode({
   const offsetY = useSharedValue(source.z * metersToPx);
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
+  const lastSentX = useSharedValue(source.x * metersToPx);
+  const lastSentY = useSharedValue(source.z * metersToPx);
 
   // 圆盘尺寸在首次 layout 后才知道，此时按最新半径重放空间坐标
   useEffect(() => {
     offsetX.value = source.x * metersToPx;
     offsetY.value = source.z * metersToPx;
-  }, [discRadius, metersToPx, source.x, source.z, offsetX, offsetY]);
+    lastSentX.value = source.x * metersToPx;
+    lastSentY.value = source.z * metersToPx;
+  }, [discRadius, metersToPx, source.x, source.z, offsetX, offsetY, lastSentX, lastSentY]);
 
   const pan = Gesture.Pan()
     .onStart(() => {
       startX.value = offsetX.value;
       startY.value = offsetY.value;
+      lastSentX.value = offsetX.value;
+      lastSentY.value = offsetY.value;
     })
     .onUpdate((event) => {
       // clamp 到圆盘内（与 domain/position.ts 的 clampToDisc 相同逻辑，worklet 内联）
@@ -57,18 +65,39 @@ export function SourceNode({
       const dy = startY.value + event.translationY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const maxDist = discRadius - NODE_RADIUS;
+      let targetX = dx;
+      let targetY = dy;
       if (dist <= maxDist) {
         offsetX.value = dx;
         offsetY.value = dy;
       } else {
         const k = maxDist / dist;
-        offsetX.value = dx * k;
-        offsetY.value = dy * k;
+        targetX = dx * k;
+        targetY = dy * k;
+        offsetX.value = targetX;
+        offsetY.value = targetY;
+      }
+
+      if (onMove) {
+        const moveDistSq =
+          (targetX - lastSentX.value) * (targetX - lastSentX.value) +
+          (targetY - lastSentY.value) * (targetY - lastSentY.value);
+        if (moveDistSq >= 1) {
+          lastSentX.value = targetX;
+          lastSentY.value = targetY;
+          const pxToMeters = MAX_DISTANCE_M / discRadius;
+          runOnJS(onMove)(source.instanceId, targetX * pxToMeters, targetY * pxToMeters);
+        }
       }
     })
     .onEnd(() => {
       const pxToMeters = MAX_DISTANCE_M / discRadius;
-      runOnJS(onMoveEnd)(source.instanceId, offsetX.value * pxToMeters, offsetY.value * pxToMeters);
+      const finalX = offsetX.value * pxToMeters;
+      const finalZ = offsetY.value * pxToMeters;
+      if (onMove) {
+        runOnJS(onMove)(source.instanceId, finalX, finalZ);
+      }
+      runOnJS(onMoveEnd)(source.instanceId, finalX, finalZ);
     });
 
   const tap = Gesture.Tap().onEnd(() => {

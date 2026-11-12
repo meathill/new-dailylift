@@ -10,8 +10,8 @@ export interface SpatialAudioNativeModule extends NativeModule {
   loadSource(id: string, uri: string, loop: boolean): Promise<void>;
   playSource(id: string): Promise<void>;
   stopSource(id: string): Promise<void>;
-  setSourcePosition(id: string, x: number, y: number, z: number): Promise<void>;
-  setSourceVolume(id: string, volume: number): Promise<void>;
+  setSourcePosition(id: string, x: number, y: number, z: number): void | Promise<void>;
+  setSourceVolume(id: string, volume: number): void | Promise<void>;
   unloadSource(id: string): Promise<void>;
   stopAll(): Promise<void>;
 }

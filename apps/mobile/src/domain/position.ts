@@ -38,3 +38,41 @@ export function clampToDisc(dx: number, dy: number, radius: number): DiscOffset 
 export function distanceToListener(point: SpacePoint): number {
   return Math.hypot(point.x, point.z);
 }
+
+export interface DiscBounds {
+  centerX: number;
+  centerY: number;
+  radius: number;
+}
+
+/**
+ * 判断全局屏幕坐标 (windowX, windowY) 是否在圆盘区域内。
+ * tolerance 允许一定容差（例如 1.05 表示半径外 5% 范围内也能吸附放置）。
+ */
+export function isPointInsideDisc(
+  windowX: number,
+  windowY: number,
+  bounds: DiscBounds,
+  tolerance = 1.0
+): boolean {
+  if (bounds.radius <= 0) return false;
+  const dist = Math.hypot(windowX - bounds.centerX, windowY - bounds.centerY);
+  return dist <= bounds.radius * tolerance;
+}
+
+/**
+ * 将全局屏幕坐标 (windowX, windowY) 转换为圆盘空间三维坐标 (x, z)。
+ * 自动应用 nodeRadius 安全边距限制，确保放置在圆盘边界内。
+ */
+export function windowPointToSpace(
+  windowX: number,
+  windowY: number,
+  bounds: DiscBounds,
+  nodeRadius = 0
+): SpacePoint {
+  const dx = windowX - bounds.centerX;
+  const dy = windowY - bounds.centerY;
+  const maxRadius = Math.max(0, bounds.radius - nodeRadius);
+  const clamped = clampToDisc(dx, dy, maxRadius);
+  return discOffsetToSpace(clamped, bounds.radius);
+}

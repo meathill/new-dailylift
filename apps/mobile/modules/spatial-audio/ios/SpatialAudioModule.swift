@@ -45,12 +45,12 @@ public class SpatialAudioModule: Module {
       self.stopSource(id: id)
     }
 
-    AsyncFunction("setSourcePosition") { [weak self] (id: String, x: Double, y: Double, z: Double) -> Void in
+    Function("setSourcePosition") { [weak self] (id: String, x: Double, y: Double, z: Double) -> Void in
       guard let self else { return }
       self.setSourcePosition(id: id, x: x, y: y, z: z)
     }
 
-    AsyncFunction("setSourceVolume") { [weak self] (id: String, volume: Double) -> Void in
+    Function("setSourceVolume") { [weak self] (id: String, volume: Double) -> Void in
       guard let self else { return }
       self.setSourceVolume(id: id, volume: volume)
     }
@@ -82,6 +82,25 @@ public class SpatialAudioModule: Module {
 
       if !isPrepared {
         engine.attach(environment)
+        // 显式锁定听者位置与三维朝向：
+        // 听者位于原点 (0, 0, 0)，视线朝向 -z（屏幕上方为前），头顶指向 +y
+        environment.listenerPosition = AVAudio3DPoint(x: 0, y: 0, z: 0)
+        environment.listenerVectorOrientation = AVAudio3DVectorOrientation(
+          forward: AVAudio3DVector(x: 0, y: 0, z: -1),
+          up: AVAudio3DVector(x: 0, y: 1, z: 0)
+        )
+
+        // 开启微量真实空间混响：
+        // 纯自由场（无反射）HRTF 容易导致双耳“脑中化”并丢失前后距离感。
+        // 轻度的小房间混响能给大脑提供空间外部化（Externalization）反射线索，显著提升前后辨识度。
+        environment.reverbParameters.enable = true
+        environment.reverbParameters.level = -18.0
+        environment.reverbParameters.loadFactoryReverbPreset(.smallRoom)
+
+        if #available(iOS 18.0, *) {
+          environment.isListenerHeadTrackingEnabled = true
+        }
+
         // 空图调用 prepare() 会抛 inputNode/outputNode 为空的异常，
         // 先把环境节点接上主混音器，构成有效输出链
         engine.connect(environment, to: engine.mainMixerNode, format: nil)
@@ -169,16 +188,16 @@ public class SpatialAudioModule: Module {
   }
 
   private func setSourcePosition(id: String, x: Double, y: Double, z: Double) {
-    audioQueue.sync {
-      sources[id]?.player.position = AVAudio3DPoint(
+    audioQueue.async { [weak self] in
+      self?.sources[id]?.player.position = AVAudio3DPoint(
         x: Float(x), y: Float(y), z: Float(z)
       )
     }
   }
 
   private func setSourceVolume(id: String, volume: Double) {
-    audioQueue.sync {
-      sources[id]?.player.volume = Float(volume)
+    audioQueue.async { [weak self] in
+      self?.sources[id]?.player.volume = Float(volume)
     }
   }
 
