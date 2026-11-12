@@ -30,6 +30,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build:ios": "eas build --platform ios --local",
+    "build:tf": "eas build --platform ios --local --auto-submit",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

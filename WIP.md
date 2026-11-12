@@ -3,12 +3,11 @@
 > 目标：验证「用户在圆盘中心，拖动声源到不同位置获得不同声道/音量，方案可保存分享」的功能可行性。
 > 技术路线见 STUDY.md 讨论结论：iOS 自建 Expo 本地模块（AVAudioEngine + HRTF），Skia 圆盘，方案存 JSON。
 
-## 当前迭代任务：圆盘边界视觉优化、拖出删除与全局播控
+## 当前迭代任务：TestFlight 打包配置与发布准备
 
-- [x] 1. 音盘边界清晰度与发光修复：圆盘尺寸缩小（留出清晰边距），发光收敛到 Skia 内部同心圆，移除外部 View 边框错位
-- [x] 2. 拖出圆盘删除声源：节点拖拽允许穿透圆盘边界，越界变红半透明提示，松手自动删除声源并停止播放
-- [x] 3. 全局播放/暂停停止按钮：顶部常驻主控按钮与中心听者点击联动，一键暂停/恢复全部声源，告别关模拟器
-- [x] 4. 修复拖入音源前后音盘尺寸跳变问题：锁定恒定圆盘尺寸基准，解除因 SourcePanel 显隐造成的 height 弹性压缩跳变
+- [x] 1. 配置 iOS Bundle Identifier 为 `com.meathill.onemoretide`（app.json、project.pbxproj、Info.plist 统一）
+- [x] 2. 初始化 EAS 项目 `@meathill/onemoretide` 并生成 eas.json（配置本地 EAS 编译与 auto-submit）
+- [x] 3. 根目录与 mobile 配置 `build:ios`、`build:tf` 快捷脚本，准备一键本地打包与上传 TestFlight
 
 ## 历史完成阶段
 

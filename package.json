@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "pnpm --filter dailylift-mobile ios",
     "start": "pnpm --filter dailylift-mobile start",
+    "build:ios": "cd apps/mobile && eas build --platform ios --local",
+    "build:tf": "cd apps/mobile && eas build --platform ios --local --auto-submit",
     "test": "pnpm -r run test",
     "format": "biome format --write .",
     "typecheck": "pnpm -r run typecheck"

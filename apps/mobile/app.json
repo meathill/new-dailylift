@@ -1,14 +1,15 @@
 {
   "expo": {
     "name": "DailyLift",
-    "slug": "mobile",
+    "slug": "onemoretide",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.meathill.mobile"
+      "bundleIdentifier": "com.meathill.onemoretide",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,6 +23,12 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-sharing", "expo-asset"]
+    "plugins": ["expo-sharing", "expo-asset"],
+    "extra": {
+      "eas": {
+        "projectId": "e9225916-412e-443f-bcb8-1346d9fbebdc"
+      }
+    },
+    "owner": "meathill"
   }
 }
