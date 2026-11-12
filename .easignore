@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+dist/
+*.log
+.zcode/
+.claude/
+
+# Expo prebuild 产物（由 EAS 在云端/沙盒中运行 prebuild 生成）
+apps/mobile/ios/
+apps/mobile/android/
+
+# 版本控制与临时文件
+.git/
+.DS_Store
+*.tsbuildinfo
+

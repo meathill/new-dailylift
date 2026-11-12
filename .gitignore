@@ -9,5 +9,8 @@ dist/
 apps/mobile/ios/
 apps/mobile/android/
 
+# 音频素材大文件不入 git 库（由 .easignore 负责纳入构建沙盒）
+apps/mobile/assets/audio/
+
 .DS_Store
 *.tsbuildinfo
