@@ -16,6 +16,10 @@ interface SchemeState {
   togglePaused: (instanceId: string) => void;
   select: (instanceId: string | null) => void;
   setSchemeName: (name: string) => void;
+  /** 全部暂停 */
+  pauseAll: () => void;
+  /** 全部恢复 */
+  resumeAll: () => void;
   /** 导入方案：整体替换声源并取消暂停 */
   replaceSources: (sources: PlacedSource[]) => void;
   clear: () => void;
@@ -63,6 +67,13 @@ export const useSchemeStore = create<SchemeState>((set) => ({
   select: (instanceId) => set({ selectedId: instanceId }),
 
   setSchemeName: (name) => set({ schemeName: name }),
+
+  pauseAll: () =>
+    set((state) => ({
+      pausedIds: state.sources.map((item) => item.instanceId),
+    })),
+
+  resumeAll: () => set({ pausedIds: [] }),
 
   replaceSources: (sources) => set({ sources, pausedIds: [], selectedId: null }),
 

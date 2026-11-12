@@ -92,10 +92,10 @@ public class SpatialAudioModule: Module {
 
         // 开启微量真实空间混响：
         // 纯自由场（无反射）HRTF 容易导致双耳“脑中化”并丢失前后距离感。
-        // 轻度的小房间混响能给大脑提供空间外部化（Externalization）反射线索，显著提升前后辨识度。
+        // 适度的环境反射让大脑获得空间外部化（Externalization）线索，大幅提升前后辨识度。
         environment.reverbParameters.enable = true
-        environment.reverbParameters.level = -18.0
-        environment.reverbParameters.loadFactoryReverbPreset(.smallRoom)
+        environment.reverbParameters.level = -12.0
+        environment.reverbParameters.loadFactoryReverbPreset(.mediumChamber)
 
         if #available(iOS 18.0, *) {
           environment.isListenerHeadTrackingEnabled = true
@@ -144,6 +144,9 @@ public class SpatialAudioModule: Module {
       // 单声道素材走 HRTF 双耳渲染
       player.renderingAlgorithm = .HRTFHQ
       player.sourceMode = .spatializeIfMono
+      // 默认混响与遮挡参数（初始默认通透）
+      player.reverbBlend = 0.20
+      player.obstruction = 0.0
       // 距离衰减使用系统默认参数（参考距离 1m、rolloff 1），近处响、远处轻
 
       player.scheduleBuffer(
@@ -189,9 +192,37 @@ public class SpatialAudioModule: Module {
 
   private func setSourcePosition(id: String, x: Double, y: Double, z: Double) {
     audioQueue.async { [weak self] in
-      self?.sources[id]?.player.position = AVAudio3DPoint(
-        x: Float(x), y: Float(y), z: Float(z)
-      )
+      guard let self, let source = self.sources[id] else { return }
+
+      let floatX = Float(x)
+      let floatZ = Float(z)
+      // 赋予微弱自然的地面仰俯落差（-0.3m），打破绝对对称水平面的前后声学死角
+      let floatY = Float(y == 0 ? -0.3 : y)
+
+      source.player.position = AVAudio3DPoint(x: floatX, y: floatY, z: floatZ)
+
+      // 计算与听者距离及前后朝向分量
+      let dist = sqrt(floatX * floatX + floatZ * floatZ)
+      if dist > 0.001 {
+        // 前方为 -z，正前方 forwardRatio = 1.0，正后方 forwardRatio = -1.0
+        let forwardRatio = -floatZ / dist
+
+        if forwardRatio < 0 {
+          // 声源在后方：模拟耳廓与头颅自然物理遮挡（Pinna Obstruction）
+          // 后方系数 0 ~ 1.0（正后方为 1.0）
+          let rearFactor = -forwardRatio
+          // 动态高频滤波：越靠近后方，直达声高频衰减至 -6.0 dB，声音变深沉温润
+          source.player.obstruction = -6.0 * rearFactor
+          // 后方直达声减弱，空间反射声占比增加
+          let distReverb = min(0.12, (dist / 4.0) * 0.12)
+          source.player.reverbBlend = min(0.38, 0.20 + 0.10 * rearFactor + distReverb)
+        } else {
+          // 声源在前方：无耳廓遮挡，清脆通透
+          source.player.obstruction = 0.0
+          let distReverb = min(0.10, (dist / 4.0) * 0.10)
+          source.player.reverbBlend = min(0.28, 0.18 + distReverb)
+        }
+      }
     }
   }
 

@@ -16,9 +16,14 @@
 - **空音频图调用 `engine.prepare()` 会抛异常**（`inputNode != nullptr || outputNode != nullptr`）：attach 了 environment 但没 connect 时就会崩。prepare 时先把 environment 接到 `mainMixerNode` 构成有效输出链。
 - iOS 26/27 SDK 实测：`AVAudioEnvironmentNode.listener`、`player.distanceParams` 不可用（成员不存在）；`Description(...)` DSL 也不存在。距离衰减用系统默认参数（参考 1m / rolloff 1）已能听出远近。`AVAudio3DPoint` 字段与 `player.volume` 是 **Float**，从 JS 收来的 Double 要手动转。
 - Apple 听者坐标系：原点为听者，**前方是 -z**。圆盘 UI 约定「屏幕上方 = 前方」即 dy 为负映射 z 为负，两侧一致。显式锁定 `listenerVectorOrientation`（forward: -z, up: +y）。
-- **HRTF 前后定位与空间外部化**：纯自由场干音容易导致“脑中化（In-head localization）”并出现前后混淆（Cone of Confusion）；开启 `environment.reverbParameters`（小房间预设，level -18dB）能提供必要的反射线索增强前后空间感。
+- **HRTF 前后定位与空间外部化**：纯自由场干音容易导致“脑中化（In-head localization）”并出现前后混淆（Cone of Confusion）；开启 `environment.reverbParameters`（中型混响室预设，level -12dB）能提供必要的反射线索增强前后空间感。
+- **静态真 3D 前后分辨（无需头部追踪）**：
+  1. **耳廓高频阴影（Pinna Obstruction）**：利用 `AVAudio3DMixing.obstruction`。前方为 0dB（通透清脆）；后方根据偏角平滑衰减至 -6dB，模拟后脑与耳廓遮挡直达声高频，声音变深沉温润。
+  2. **混响干湿比随方位与距离动态微调（Dynamic ReverbBlend）**：修复 `player.reverbBlend` 默认 0.0（导致过去混响开启却无效果）的问题；前方保持直达声为主（~0.18），后方及远处反射声比例增加（~0.38），形成极强的纵深感知。
+  3. **微量高低落差（Elevation = -0.3m）**：让声源略低于听者耳朵高度，打破绝对水平面的前后对称死角。
 - **iOS 18+ 动态头部追踪**：`environment.isListenerHeadTrackingEnabled` 仅在 iOS 18.0+ 可用，配合 AirPods 可利用头部微动动态消除前后混淆。
 - **拖动实时声音变化性能设计**：`setSourcePosition` 改用 Expo Module 同步 `Function` + `audioQueue.async` 派发；JS 拖动中高频仅通知音频控制器（位移 > 1px 即发），不更新 React/Zustand store 状态树，松手时才持久化，确保 60/120fps 动画零卡顿与零延迟声像跟随。
+- **圆盘布局稳定性避坑**：圆盘尺寸 `size` 必须基于 `useWindowDimensions().width` 恒定计算，**绝不能使用 `onLayout` 动态 `min(width, height)`**。因为拖入声源后会自动弹出选中的 `SourcePanel`（占用 ~52px），若依赖容器高度，会导致弹性区域可用 `height` 被压缩从而让整个圆盘突然跳变缩小。`onLayout` 仅用于通过 `measureInWindow` 上报全局屏幕位置。
 - 单声道素材 + `sourceMode = .spatializeIfMono` 才会走 HRTF；立体声素材会被 passthrough。
 - 所有引擎操作收敛到一个串行 DispatchQueue，避免与渲染线程竞争。
 - 素材用 `Asset.fromModule(require('./x.wav')).localUri` 传给原生（bundled asset 直接有本地路径）。

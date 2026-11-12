@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { PauseIcon, PlayIcon } from 'phosphor-react-native';
 import {
   loadAndPlaySource,
   pauseSource,
@@ -43,6 +44,7 @@ export default function App() {
   const dragActive = useSharedValue(0);
 
   const selectedSource = sources.find((item) => item.instanceId === selectedId) ?? null;
+  const isAnyPlaying = sources.length > 0 && sources.some((s) => !pausedIds.includes(s.instanceId));
 
   /** 在圆盘指定空间位置放置并立即循环播放 */
   function handleAddAt(soundId: SoundId, x: number, z: number) {
@@ -89,6 +91,21 @@ export default function App() {
 
   function handleTapHint() {
     Alert.alert('提示', '请按住音源向上拖动到圆盘中放置');
+  }
+
+  /** 全局播放 / 暂停切换 */
+  function handleToggleMasterPlay() {
+    if (sources.length === 0) {
+      Alert.alert('提示', '请先从下方拖入音源到上方圆盘中');
+      return;
+    }
+    if (isAnyPlaying) {
+      store.getState().pauseAll();
+      stopAllSources().catch(notifyError);
+    } else {
+      store.getState().resumeAll();
+      Promise.allSettled(sources.map((s) => resumeSource(s.instanceId))).catch(notifyError);
+    }
   }
 
   /** 拖动中实时更新声音空间位置（不触发 React 重新渲染） */
@@ -174,9 +191,30 @@ export default function App() {
         <SafeAreaView style={styles.safe}>
           <StatusBar style="light" />
           <View style={styles.header}>
-            <Text style={styles.title}>声境</Text>
-            <Text style={styles.subtitle}>把声音拖到你身边 · 中心是你</Text>
+            <View style={styles.headerSide} />
+            <View style={styles.headerCenter}>
+              <Text style={styles.title}>声境</Text>
+              <Text style={styles.subtitle}>把声音拖到你身边 · 中心是你</Text>
+            </View>
+            <View style={styles.headerSide}>
+              <Pressable
+                style={[styles.masterButton, isAnyPlaying && styles.masterButtonActive]}
+                onPress={handleToggleMasterPlay}
+                accessibilityLabel={isAnyPlaying ? '停止所有播放' : '恢复全部播放'}
+              >
+                {isAnyPlaying ? (
+                  <PauseIcon size={18} color="#F5E8D0" weight="fill" />
+                ) : (
+                  <PlayIcon
+                    size={18}
+                    color={sources.length > 0 ? '#F5E8D0' : '#5A6B85'}
+                    weight="fill"
+                  />
+                )}
+              </Pressable>
+            </View>
           </View>
+
           <Disc
             sources={sources}
             pausedIds={pausedIds}
@@ -185,8 +223,11 @@ export default function App() {
             onSelect={(instanceId) => store.getState().select(instanceId)}
             onMove={handleMove}
             onMoveEnd={handleMoveEnd}
+            onRemove={handleRemove}
             onLayoutBounds={setDiscBounds}
+            onToggleMasterPlay={handleToggleMasterPlay}
           />
+
           {selectedSource && (
             <SourcePanel
               source={selectedSource}
@@ -196,6 +237,7 @@ export default function App() {
               onRemove={() => handleRemove(selectedSource.instanceId)}
             />
           )}
+
           <SchemeBar
             schemeName={schemeName}
             onNameChange={(name) => store.getState().setSchemeName(name)}
@@ -204,6 +246,7 @@ export default function App() {
             onImport={handleImport}
             onClear={handleClear}
           />
+
           <SoundLibrary
             onDragStart={handleDragStart}
             onDragUpdate={handleDragUpdate}
@@ -211,6 +254,7 @@ export default function App() {
             onDragCancel={handleDragCancel}
             onTapHint={handleTapHint}
           />
+
           <DragGhost
             soundId={activeDragSound}
             dragX={dragX}
@@ -239,9 +283,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#0E1420',
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 4,
+  },
+  headerSide: {
+    width: 38,
+    alignItems: 'flex-end',
+  },
+  headerCenter: {
+    alignItems: 'center',
     gap: 2,
   },
   title: {
@@ -253,5 +307,19 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12,
     color: '#5A6B85',
+  },
+  masterButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(42, 56, 80, 0.45)',
+    borderWidth: 1,
+    borderColor: '#2A3850',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  masterButtonActive: {
+    backgroundColor: 'rgba(232, 213, 181, 0.2)',
+    borderColor: '#E8D5B5',
   },
 });
