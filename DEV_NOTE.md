@@ -39,7 +39,7 @@
 
 - Biome 2.6：`files.ignores` 已改名 `files.includes`（否定用 `!` 前缀）；STUDY.md 已排除避免重排表格。
 - vitest 只测 `src/domain` 纯逻辑；RN 组件与原生行为靠真机人工验收。
-- 音源素材不入库（体积大、可再生），clone 后先跑 `node scripts/generate-sounds.ts`。
+- **音源静态资源必须入库**：EAS Build（含本地 `--local`）会将 git 跟踪文件复制到临时隔离沙盒编译。若素材被 `.gitignore` 排除，Metro 在 `export:embed` 打包阶段会因文件缺失直接报错。因此 `assets/audio/*.wav` 必须纳入 git 跟踪。
 
 ## 待验证/风险
 

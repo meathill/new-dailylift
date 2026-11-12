@@ -9,7 +9,5 @@ dist/
 apps/mobile/ios/
 apps/mobile/android/
 
-# 音频素材体积大但可由脚本再生，入库脚本不入产物
-apps/mobile/assets/audio/
 .DS_Store
 *.tsbuildinfo
