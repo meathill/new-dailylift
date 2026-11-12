@@ -39,7 +39,10 @@
 
 - Biome 2.6：`files.ignores` 已改名 `files.includes`（否定用 `!` 前缀）；STUDY.md 已排除避免重排表格。
 - vitest 只测 `src/domain` 纯逻辑；RN 组件与原生行为靠真机人工验收。
-- **音源静态资源必须入库**：EAS Build（含本地 `--local`）会将 git 跟踪文件复制到临时隔离沙盒编译。若素材被 `.gitignore` 排除，Metro 在 `export:embed` 打包阶段会因文件缺失直接报错。因此 `assets/audio/*.wav` 必须纳入 git 跟踪。
+- **大文件/静态素材不入 git 库但参与 EAS 打包（.easignore 机制）**：
+  - 默认情况下 EAS CLI 会使用 `.gitignore` 决定哪些文件复制到构建沙盒（未被 git 追踪的文件会被遗漏）；
+  - 若存在 `.easignore`，**EAS CLI 会完全使用 `.easignore` 替代 `.gitignore`**；
+  - 决策：在 `.gitignore` 中忽略音频大文件 `apps/mobile/assets/audio/` 保持 git 仓库轻量；同时在项目根目录创建 `.easignore`（排除 `node_modules/`、`.git/`、原生 prebuild 产物等，**不排除**音频），本地物理音频即可被完整带入构建沙盒。可通过 `eas build:inspect -p ios --stage archive --output <dir> --profile production` 检验沙盒归档。
 
 ## 待验证/风险
 
